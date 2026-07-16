@@ -433,6 +433,20 @@ pub fn render_with_runtime_registry(
     render_notifications(app, frame, terminal_area);
     render_popup_pane(app, terminal_runtimes, frame, terminal_area);
 
+    // Bottom-anchored overlays should draw over the desktop tab bar if it is at the bottom.
+    let bottom_overlay_area = if app.tab_bar_position == crate::config::TabBarPositionConfig::Bottom
+        && app.view.tab_bar_rect.height > 0
+    {
+        Rect {
+            x: terminal_area.x,
+            y: terminal_area.y,
+            width: terminal_area.width,
+            height: terminal_area.height + app.view.tab_bar_rect.height,
+        }
+    } else {
+        terminal_area
+    };
+
     match app.mode {
         Mode::Onboarding => render_onboarding_overlay(app, frame, frame.area()),
         Mode::ReleaseNotes => render_release_notes_overlay(app, frame, frame.area()),
@@ -440,10 +454,10 @@ pub fn render_with_runtime_registry(
         Mode::Navigate if app.view.layout == ViewLayout::Mobile => {
             render_mobile_panel(app, terminal_runtimes, frame, frame.area())
         }
-        Mode::Navigate => render_navigate_overlay(app, frame, terminal_area),
-        Mode::Prefix => render_prefix_overlay(app, frame, terminal_area),
-        Mode::Copy => render_copy_mode_overlay(app, frame, terminal_area),
-        Mode::Resize => render_resize_overlay(app, frame, terminal_area),
+        Mode::Navigate => render_navigate_overlay(app, frame, bottom_overlay_area),
+        Mode::Prefix => render_prefix_overlay(app, frame, bottom_overlay_area),
+        Mode::Copy => render_copy_mode_overlay(app, frame, bottom_overlay_area),
+        Mode::Resize => render_resize_overlay(app, frame, bottom_overlay_area),
         Mode::ConfirmClose => render_confirm_close_overlay(app, frame, terminal_area),
         Mode::ContextMenu => {
             render_context_menu(app, frame);
