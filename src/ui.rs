@@ -200,9 +200,18 @@ fn desktop_tab_bar_and_terminal_area(
 ) -> (Rect, Rect) {
     let hide_single_tab_bar = app.hide_tab_bar_when_single_tab && ws.tabs.len() == 1;
     if !hide_single_tab_bar && main_area.height > 1 {
-        let [tab_bar_rect, terminal_area] =
-            Layout::vertical([Constraint::Length(1), Constraint::Min(1)]).areas(main_area);
-        (tab_bar_rect, terminal_area)
+        match app.tab_bar_position {
+            crate::config::TabBarPositionConfig::Top => {
+                let [tab_bar_rect, terminal_area] =
+                    Layout::vertical([Constraint::Length(1), Constraint::Min(1)]).areas(main_area);
+                (tab_bar_rect, terminal_area)
+            }
+            crate::config::TabBarPositionConfig::Bottom => {
+                let [terminal_area, tab_bar_rect] =
+                    Layout::vertical([Constraint::Min(1), Constraint::Length(1)]).areas(main_area);
+                (tab_bar_rect, terminal_area)
+            }
+        }
     } else {
         (Rect::default(), main_area)
     }
@@ -770,6 +779,28 @@ mod tests {
     }
 
     #[test]
+    fn desktop_tab_bar_position_controls_geometry() {
+        let mut app = crate::app::state::AppState::test_new();
+        app.workspaces = vec![Workspace::test_new("one")];
+        app.active = Some(0);
+        app.selected = 0;
+        app.mode = Mode::Terminal;
+
+        compute_view(&mut app, Rect::new(0, 0, 80, 20));
+
+        assert_eq!(app.view.tab_bar_rect, Rect::new(26, 0, 54, 1));
+        assert_eq!(app.view.terminal_area, Rect::new(26, 1, 54, 19));
+
+        app.tab_bar_position = crate::config::TabBarPositionConfig::Bottom;
+        compute_view(&mut app, Rect::new(0, 0, 80, 20));
+
+        assert_eq!(app.view.terminal_area, Rect::new(26, 0, 54, 19));
+        assert_eq!(app.view.tab_bar_rect, Rect::new(26, 19, 54, 1));
+        assert!(app.view.tab_hit_areas.iter().all(|rect| rect.y == 19));
+        assert_eq!(app.view.new_tab_hit_area.y, 19);
+    }
+
+    #[test]
     fn hide_tab_bar_when_single_tab_toggles_geometry_with_tab_count() {
         let mut app = crate::app::state::AppState::test_new();
         app.hide_tab_bar_when_single_tab = true;
@@ -801,6 +832,28 @@ mod tests {
         assert_eq!(app.view.tab_bar_rect, Rect::default());
         assert!(app.view.tab_hit_areas.is_empty());
         assert_eq!(app.view.new_tab_hit_area, Rect::default());
+    }
+
+    #[test]
+    fn bottom_tab_bar_still_hides_when_single_tab() {
+        let mut app = crate::app::state::AppState::test_new();
+        app.hide_tab_bar_when_single_tab = true;
+        app.tab_bar_position = crate::config::TabBarPositionConfig::Bottom;
+        app.workspaces = vec![Workspace::test_new("one")];
+        app.active = Some(0);
+        app.selected = 0;
+        app.mode = Mode::Terminal;
+
+        compute_view(&mut app, Rect::new(0, 0, 80, 20));
+
+        assert_eq!(app.view.tab_bar_rect, Rect::default());
+        assert_eq!(app.view.terminal_area, Rect::new(26, 0, 54, 20));
+
+        app.workspaces[0].test_add_tab(Some("logs"));
+        compute_view(&mut app, Rect::new(0, 0, 80, 20));
+
+        assert_eq!(app.view.terminal_area, Rect::new(26, 0, 54, 19));
+        assert_eq!(app.view.tab_bar_rect, Rect::new(26, 19, 54, 1));
     }
 
     #[tokio::test]
