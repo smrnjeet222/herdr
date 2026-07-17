@@ -1445,6 +1445,9 @@ pub struct AppState {
     pub sidebar_width_auto: bool,
     pub sidebar_collapsed: bool,
     pub sidebar_collapsed_mode: crate::config::SidebarCollapsedModeConfig,
+    pub collapsed_sidebar_workspace_name_position:
+        crate::config::CollapsedSidebarWorkspaceNamePositionConfig,
+    pub collapsed_sidebar_workspace_name_max_budget: u16,
     /// Ratio of sidebar height allocated to the workspaces section.
     pub sidebar_section_split: f32,
     pub agent_panel_sort: AgentPanelSort,
@@ -1821,6 +1824,9 @@ impl AppState {
             sidebar_width_auto: false,
             sidebar_collapsed: false,
             sidebar_collapsed_mode: crate::config::SidebarCollapsedModeConfig::Compact,
+            collapsed_sidebar_workspace_name_position:
+                crate::config::CollapsedSidebarWorkspaceNamePositionConfig::Left,
+            collapsed_sidebar_workspace_name_max_budget: 25,
             sidebar_section_split: 0.5,
             agent_panel_sort: AgentPanelSort::Spaces,
             sidebar_agents: crate::config::AgentsSidebarConfig::default(),

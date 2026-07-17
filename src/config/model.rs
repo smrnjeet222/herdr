@@ -123,6 +123,14 @@ pub enum SidebarCollapsedModeConfig {
     Hidden,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum CollapsedSidebarWorkspaceNamePositionConfig {
+    #[default]
+    Left,
+    Right,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct RightClickPassthroughModifierConfig(Option<KeyModifiers>);
 
@@ -821,6 +829,10 @@ pub struct UiConfig {
     pub toast: ToastConfig,
     /// Play sounds when agents change state in background workspaces.
     pub sound: SoundConfig,
+    /// Position of the workspace name in the tab bar when the sidebar is collapsed. Default: left.
+    pub collapsed_sidebar_workspace_name_position: CollapsedSidebarWorkspaceNamePositionConfig,
+    /// Maximum budget (percentage of width) for the workspace name in the tab bar when collapsed. Default: 25.
+    pub collapsed_sidebar_workspace_name_max_budget: u16,
 }
 
 /// Cursor shape (DECSCUSR) used for the forced IME anchor.
@@ -1012,6 +1024,9 @@ impl Default for UiConfig {
             accent: "cyan".into(),
             toast: ToastConfig::default(),
             sound: SoundConfig::default(),
+            collapsed_sidebar_workspace_name_position:
+                CollapsedSidebarWorkspaceNamePositionConfig::Left,
+            collapsed_sidebar_workspace_name_max_budget: 25,
         }
     }
 }
@@ -1396,6 +1411,33 @@ sidebar_collapsed_mode = "hidden"
             config.ui.sidebar_collapsed_mode,
             SidebarCollapsedModeConfig::Hidden
         );
+    }
+
+    #[test]
+    fn collapsed_sidebar_workspace_name_config_parses() {
+        let default_config = Config::default();
+        assert_eq!(
+            default_config.ui.collapsed_sidebar_workspace_name_position,
+            CollapsedSidebarWorkspaceNamePositionConfig::Left
+        );
+        assert_eq!(
+            default_config
+                .ui
+                .collapsed_sidebar_workspace_name_max_budget,
+            25
+        );
+
+        let toml = r#"
+[ui]
+collapsed_sidebar_workspace_name_position = "right"
+collapsed_sidebar_workspace_name_max_budget = 40
+"#;
+        let config: Config = toml::from_str(toml).unwrap();
+        assert_eq!(
+            config.ui.collapsed_sidebar_workspace_name_position,
+            CollapsedSidebarWorkspaceNamePositionConfig::Right
+        );
+        assert_eq!(config.ui.collapsed_sidebar_workspace_name_max_budget, 40);
     }
 
     #[test]

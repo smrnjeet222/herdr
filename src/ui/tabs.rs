@@ -395,27 +395,55 @@ pub(super) fn render_tab_bar(app: &AppState, frame: &mut Frame, area: Rect) {
     if app.sidebar_collapsed {
         if let Some(active_ws_idx) = app.active {
             if let Some(ws) = app.workspaces.get(active_ws_idx) {
-                let start_x = app.view.terminal_area.x;
-                let prefix_w = area.x.saturating_sub(start_x);
-                if prefix_w > 0 {
-                    let prefix_rect = Rect::new(start_x, area.y, prefix_w, area.height);
-                    let ws_name = workspace_prefix_text(ws);
-                    let max_budget = prefix_w.saturating_sub(4) as usize;
-                    let truncated = crate::ui::text::truncate_end(&ws_name, max_budget);
-                    let line = ratatui::text::Line::from(vec![
-                        ratatui::text::Span::raw(" "),
-                        ratatui::text::Span::styled(
-                            truncated,
-                            Style::default().fg(p.accent).add_modifier(Modifier::BOLD),
-                        ),
-                        ratatui::text::Span::raw(" "),
-                        ratatui::text::Span::styled("│", Style::default().fg(p.overlay0)),
-                        ratatui::text::Span::raw(" "),
-                    ]);
-                    frame.render_widget(
-                        Paragraph::new(line).style(Style::default().bg(p.panel_bg)),
-                        prefix_rect,
-                    );
+                let ws_name = workspace_prefix_text(ws);
+                match app.collapsed_sidebar_workspace_name_position {
+                    crate::config::CollapsedSidebarWorkspaceNamePositionConfig::Left => {
+                        let start_x = app.view.terminal_area.x;
+                        let prefix_w = area.x.saturating_sub(start_x);
+                        if prefix_w > 0 {
+                            let prefix_rect = Rect::new(start_x, area.y, prefix_w, area.height);
+                            let max_budget = prefix_w.saturating_sub(4) as usize;
+                            let truncated = crate::ui::text::truncate_end(&ws_name, max_budget);
+                            let line = ratatui::text::Line::from(vec![
+                                ratatui::text::Span::raw(" "),
+                                ratatui::text::Span::styled(
+                                    truncated,
+                                    Style::default().fg(p.accent).add_modifier(Modifier::BOLD),
+                                ),
+                                ratatui::text::Span::raw(" "),
+                                ratatui::text::Span::styled("│", Style::default().fg(p.overlay0)),
+                                ratatui::text::Span::raw(" "),
+                            ]);
+                            frame.render_widget(
+                                Paragraph::new(line).style(Style::default().bg(p.panel_bg)),
+                                prefix_rect,
+                            );
+                        }
+                    }
+                    crate::config::CollapsedSidebarWorkspaceNamePositionConfig::Right => {
+                        let start_x = area.x + area.width;
+                        let end_x = app.view.terminal_area.x + app.view.terminal_area.width;
+                        let prefix_w = end_x.saturating_sub(start_x);
+                        if prefix_w > 0 {
+                            let prefix_rect = Rect::new(start_x, area.y, prefix_w, area.height);
+                            let max_budget = prefix_w.saturating_sub(4) as usize;
+                            let truncated = crate::ui::text::truncate_end(&ws_name, max_budget);
+                            let line = ratatui::text::Line::from(vec![
+                                ratatui::text::Span::raw(" "),
+                                ratatui::text::Span::styled("│", Style::default().fg(p.overlay0)),
+                                ratatui::text::Span::raw(" "),
+                                ratatui::text::Span::styled(
+                                    truncated,
+                                    Style::default().fg(p.accent).add_modifier(Modifier::BOLD),
+                                ),
+                                ratatui::text::Span::raw(" "),
+                            ]);
+                            frame.render_widget(
+                                Paragraph::new(line).style(Style::default().bg(p.panel_bg)),
+                                prefix_rect,
+                            );
+                        }
+                    }
                 }
             }
         }
@@ -581,10 +609,47 @@ mod tests {
             Rect::new(0, 0, 80, 1),
             app.view.tab_bar_rect.y,
         );
-        assert!(
-            row.contains("parent-repo/worktree-name"),
-            "row text was: {row:?}"
+        assert!(row.contains("parent-repo/worktr…"), "row text was: {row:?}");
+        assert!(row.contains('│'), "row text was: {row:?}");
+    }
+
+    #[test]
+    fn tab_bar_renders_workspace_name_on_right_and_with_custom_budget() {
+        let mut app = AppState::test_new();
+        let mut ws = Workspace::test_new("my-workspace");
+        ws.custom_name = None;
+        ws.identity_cwd = std::path::PathBuf::from("/repo/my-workspace");
+
+        ws.worktree_space = Some(crate::workspace::WorktreeSpaceMembership {
+            key: "my-workspace".into(),
+            label: "parent-repo".into(),
+            repo_root: std::path::PathBuf::from("/repo"),
+            checkout_path: std::path::PathBuf::from("/repo/worktree-name"),
+            is_linked_worktree: true,
+        });
+        ws.cached_git_branch = Some("worktree/worktree-name".into());
+
+        app.active = Some(0);
+        app.workspaces = vec![ws];
+        app.sidebar_collapsed = true;
+        app.collapsed_sidebar_workspace_name_position =
+            crate::config::CollapsedSidebarWorkspaceNamePositionConfig::Right;
+        app.collapsed_sidebar_workspace_name_max_budget = 10;
+
+        crate::ui::compute_view(&mut app, Rect::new(0, 0, 80, 20));
+
+        let backend = TestBackend::new(80, 20);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal
+            .draw(|frame| render_tab_bar(&app, frame, app.view.tab_bar_rect))
+            .unwrap();
+
+        let row = buffer_row_text(
+            terminal.backend().buffer(),
+            Rect::new(0, 0, 80, 1),
+            app.view.tab_bar_rect.y,
         );
+        assert!(row.contains("parent…"), "row text was: {row:?}");
         assert!(row.contains('│'), "row text was: {row:?}");
     }
 }

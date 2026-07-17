@@ -261,16 +261,31 @@ fn compute_view_internal(
     if app.sidebar_collapsed {
         if let Some(ws) = app.active.and_then(|i| app.workspaces.get(i)) {
             let ws_name = tabs::workspace_prefix_text(ws);
-            let max_budget = (tab_bar_rect.width as usize / 3).clamp(10, 30);
+            let max_budget = (tab_bar_rect.width as usize
+                * app.collapsed_sidebar_workspace_name_max_budget as usize
+                / 100)
+                .max(5);
             let truncated = self::text::truncate_end(&ws_name, max_budget);
             let prefix_w = self::text::display_width_u16(&truncated) + 4;
             if tab_bar_rect.width > prefix_w {
-                tab_bar_rect = Rect {
-                    x: tab_bar_rect.x + prefix_w,
-                    y: tab_bar_rect.y,
-                    width: tab_bar_rect.width - prefix_w,
-                    height: tab_bar_rect.height,
-                };
+                match app.collapsed_sidebar_workspace_name_position {
+                    crate::config::CollapsedSidebarWorkspaceNamePositionConfig::Left => {
+                        tab_bar_rect = Rect {
+                            x: tab_bar_rect.x + prefix_w,
+                            y: tab_bar_rect.y,
+                            width: tab_bar_rect.width - prefix_w,
+                            height: tab_bar_rect.height,
+                        };
+                    }
+                    crate::config::CollapsedSidebarWorkspaceNamePositionConfig::Right => {
+                        tab_bar_rect = Rect {
+                            x: tab_bar_rect.x,
+                            y: tab_bar_rect.y,
+                            width: tab_bar_rect.width - prefix_w,
+                            height: tab_bar_rect.height,
+                        };
+                    }
+                }
             }
         }
     }
