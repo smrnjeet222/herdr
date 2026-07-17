@@ -392,12 +392,18 @@ pub(super) fn render_tab_bar(app: &AppState, frame: &mut Frame, area: Rect) {
         }
     }
 
-    if app.sidebar_collapsed {
+    let show_ws_name = match app.tab_bar.workspace_name_display {
+        crate::config::WorkspaceNameDisplayConfig::Hidden => false,
+        crate::config::WorkspaceNameDisplayConfig::Always => true,
+        crate::config::WorkspaceNameDisplayConfig::OnlyCollapsed => app.sidebar_collapsed,
+    };
+
+    if show_ws_name {
         if let Some(active_ws_idx) = app.active {
             if let Some(ws) = app.workspaces.get(active_ws_idx) {
                 let ws_name = workspace_prefix_text(ws);
-                match app.collapsed_sidebar_workspace_name_position {
-                    crate::config::CollapsedSidebarWorkspaceNamePositionConfig::Left => {
+                match app.tab_bar.workspace_name_position {
+                    crate::config::WorkspaceNamePositionConfig::Left => {
                         let start_x = app.view.terminal_area.x;
                         let prefix_w = area.x.saturating_sub(start_x);
                         if prefix_w > 0 {
@@ -420,7 +426,7 @@ pub(super) fn render_tab_bar(app: &AppState, frame: &mut Frame, area: Rect) {
                             );
                         }
                     }
-                    crate::config::CollapsedSidebarWorkspaceNamePositionConfig::Right => {
+                    crate::config::WorkspaceNamePositionConfig::Right => {
                         let start_x = area.x + area.width;
                         let end_x = app.view.terminal_area.x + app.view.terminal_area.width;
                         let prefix_w = end_x.saturating_sub(start_x);
@@ -632,9 +638,8 @@ mod tests {
         app.active = Some(0);
         app.workspaces = vec![ws];
         app.sidebar_collapsed = true;
-        app.collapsed_sidebar_workspace_name_position =
-            crate::config::CollapsedSidebarWorkspaceNamePositionConfig::Right;
-        app.collapsed_sidebar_workspace_name_max_budget = 10;
+        app.tab_bar.workspace_name_position = crate::config::WorkspaceNamePositionConfig::Right;
+        app.tab_bar.workspace_name_max_width = 10;
 
         crate::ui::compute_view(&mut app, Rect::new(0, 0, 80, 20));
 

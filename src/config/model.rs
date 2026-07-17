@@ -125,10 +125,38 @@ pub enum SidebarCollapsedModeConfig {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
-pub enum CollapsedSidebarWorkspaceNamePositionConfig {
+pub enum WorkspaceNamePositionConfig {
     #[default]
     Left,
     Right,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum WorkspaceNameDisplayConfig {
+    Hidden,
+    Always,
+    #[serde(alias = "only-collapse")]
+    #[default]
+    OnlyCollapsed,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(default)]
+pub struct TabBarConfig {
+    pub workspace_name_position: WorkspaceNamePositionConfig,
+    pub workspace_name_display: WorkspaceNameDisplayConfig,
+    pub workspace_name_max_width: u16,
+}
+
+impl Default for TabBarConfig {
+    fn default() -> Self {
+        Self {
+            workspace_name_position: WorkspaceNamePositionConfig::Left,
+            workspace_name_display: WorkspaceNameDisplayConfig::OnlyCollapsed,
+            workspace_name_max_width: 25,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -302,6 +330,7 @@ pub struct Config {
     pub update: UpdateConfig,
     pub keys: KeysConfig,
     pub ui: UiConfig,
+    pub tab_bar: TabBarConfig,
     pub worktrees: WorktreesConfig,
     pub advanced: AdvancedConfig,
     pub experimental: ExperimentalConfig,
@@ -829,10 +858,6 @@ pub struct UiConfig {
     pub toast: ToastConfig,
     /// Play sounds when agents change state in background workspaces.
     pub sound: SoundConfig,
-    /// Position of the workspace name in the tab bar when the sidebar is collapsed. Default: left.
-    pub collapsed_sidebar_workspace_name_position: CollapsedSidebarWorkspaceNamePositionConfig,
-    /// Maximum budget (percentage of width) for the workspace name in the tab bar when collapsed. Default: 25.
-    pub collapsed_sidebar_workspace_name_max_budget: u16,
 }
 
 /// Cursor shape (DECSCUSR) used for the forced IME anchor.
@@ -1024,9 +1049,6 @@ impl Default for UiConfig {
             accent: "cyan".into(),
             toast: ToastConfig::default(),
             sound: SoundConfig::default(),
-            collapsed_sidebar_workspace_name_position:
-                CollapsedSidebarWorkspaceNamePositionConfig::Left,
-            collapsed_sidebar_workspace_name_max_budget: 25,
         }
     }
 }
@@ -1414,30 +1436,34 @@ sidebar_collapsed_mode = "hidden"
     }
 
     #[test]
-    fn collapsed_sidebar_workspace_name_config_parses() {
+    fn tab_bar_workspace_name_config_parses() {
         let default_config = Config::default();
         assert_eq!(
-            default_config.ui.collapsed_sidebar_workspace_name_position,
-            CollapsedSidebarWorkspaceNamePositionConfig::Left
+            default_config.tab_bar.workspace_name_position,
+            WorkspaceNamePositionConfig::Left
         );
         assert_eq!(
-            default_config
-                .ui
-                .collapsed_sidebar_workspace_name_max_budget,
-            25
+            default_config.tab_bar.workspace_name_display,
+            WorkspaceNameDisplayConfig::OnlyCollapsed
         );
+        assert_eq!(default_config.tab_bar.workspace_name_max_width, 25);
 
         let toml = r#"
-[ui]
-collapsed_sidebar_workspace_name_position = "right"
-collapsed_sidebar_workspace_name_max_budget = 40
+[tab_bar]
+workspace_name_position = "right"
+workspace_name_display = "only-collapse"
+workspace_name_max_width = 40
 "#;
         let config: Config = toml::from_str(toml).unwrap();
         assert_eq!(
-            config.ui.collapsed_sidebar_workspace_name_position,
-            CollapsedSidebarWorkspaceNamePositionConfig::Right
+            config.tab_bar.workspace_name_position,
+            WorkspaceNamePositionConfig::Right
         );
-        assert_eq!(config.ui.collapsed_sidebar_workspace_name_max_budget, 40);
+        assert_eq!(
+            config.tab_bar.workspace_name_display,
+            WorkspaceNameDisplayConfig::OnlyCollapsed
+        );
+        assert_eq!(config.tab_bar.workspace_name_max_width, 40);
     }
 
     #[test]

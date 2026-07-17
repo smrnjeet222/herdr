@@ -260,11 +260,15 @@ const DEFAULT_CONFIG: &str = r##"# herdr configuration
 # Collapsed sidebar presentation: "compact" keeps the narrow status rail, "hidden" uses zero width.
 # sidebar_collapsed_mode = "compact"
 
-# Position of the active workspace name in the tab bar space when collapsed: "left" or "right".
-# collapsed_sidebar_workspace_name_position = "left"
+# [tab_bar]
+# Position of the active workspace name in the tab bar space: "left" or "right".
+# workspace_name_position = "left"
 
-# Maximum budget (percentage of width) for the workspace name in the tab bar when collapsed.
-# collapsed_sidebar_workspace_name_max_budget = 25
+# Workspace name visibility control: "hidden" disables it, "always" shows it, and "only-collapse" only shows it when the sidebar is collapsed.
+# workspace_name_display = "only-collapse"
+
+# Maximum budget (percentage of width) for the workspace name in the tab bar.
+# workspace_name_max_width = 25
 
 # Terminal width at or below which Herdr uses the mobile single-column layout.
 # Increase this for foldables, tablets, or wide phone terminals.
