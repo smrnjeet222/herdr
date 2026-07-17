@@ -257,6 +257,24 @@ fn compute_view_internal(
         compute_workspace_card_areas(app, sidebar_area)
     };
 
+    let mut tab_bar_rect = tab_bar_rect;
+    if app.sidebar_collapsed {
+        if let Some(ws) = app.active.and_then(|i| app.workspaces.get(i)) {
+            let ws_name = tabs::workspace_prefix_text(ws);
+            let max_budget = (tab_bar_rect.width as usize / 3).clamp(10, 30);
+            let truncated = self::text::truncate_end(&ws_name, max_budget);
+            let prefix_w = self::text::display_width_u16(&truncated) + 4;
+            if tab_bar_rect.width > prefix_w {
+                tab_bar_rect = Rect {
+                    x: tab_bar_rect.x + prefix_w,
+                    y: tab_bar_rect.y,
+                    width: tab_bar_rect.width - prefix_w,
+                    height: tab_bar_rect.height,
+                };
+            }
+        }
+    }
+
     let tab_bar_view = app
         .active
         .and_then(|ws_idx| app.workspaces.get(ws_idx))
@@ -948,7 +966,7 @@ mod tests {
         compute_view(&mut app, Rect::new(0, 0, 80, 20));
 
         assert_eq!(app.view.sidebar_rect, Rect::new(0, 0, 0, 20));
-        assert_eq!(app.view.tab_bar_rect, Rect::new(0, 0, 80, 1));
+        assert_eq!(app.view.tab_bar_rect, Rect::new(7, 0, 73, 1));
         assert_eq!(app.view.terminal_area, Rect::new(0, 1, 80, 19));
         assert!(app.view.workspace_card_areas.is_empty());
 
