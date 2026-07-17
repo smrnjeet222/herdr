@@ -147,6 +147,42 @@ pub enum SidebarCollapsedModeConfig {
     Hidden,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum WorkspaceNamePositionConfig {
+    #[default]
+    Left,
+    Right,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum WorkspaceNameDisplayConfig {
+    Hidden,
+    Always,
+    #[serde(alias = "only-collapse")]
+    #[default]
+    OnlyCollapsed,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(default)]
+pub struct TabBarConfig {
+    pub workspace_name_position: WorkspaceNamePositionConfig,
+    pub workspace_name_display: WorkspaceNameDisplayConfig,
+    pub workspace_name_max_width: u16,
+}
+
+impl Default for TabBarConfig {
+    fn default() -> Self {
+        Self {
+            workspace_name_position: WorkspaceNamePositionConfig::Left,
+            workspace_name_display: WorkspaceNameDisplayConfig::OnlyCollapsed,
+            workspace_name_max_width: 25,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct RightClickPassthroughModifierConfig(Option<KeyModifiers>);
 
@@ -318,6 +354,7 @@ pub struct Config {
     pub update: UpdateConfig,
     pub keys: KeysConfig,
     pub ui: UiConfig,
+    pub tab_bar: TabBarConfig,
     pub worktrees: WorktreesConfig,
     pub advanced: AdvancedConfig,
     pub experimental: ExperimentalConfig,
@@ -1487,6 +1524,37 @@ sidebar_collapsed_mode = "hidden"
             config.ui.sidebar_collapsed_mode,
             SidebarCollapsedModeConfig::Hidden
         );
+    }
+
+    #[test]
+    fn tab_bar_workspace_name_config_parses() {
+        let default_config = Config::default();
+        assert_eq!(
+            default_config.tab_bar.workspace_name_position,
+            WorkspaceNamePositionConfig::Left
+        );
+        assert_eq!(
+            default_config.tab_bar.workspace_name_display,
+            WorkspaceNameDisplayConfig::OnlyCollapsed
+        );
+        assert_eq!(default_config.tab_bar.workspace_name_max_width, 25);
+
+        let toml = r#"
+[tab_bar]
+workspace_name_position = "right"
+workspace_name_display = "only-collapse"
+workspace_name_max_width = 40
+"#;
+        let config: Config = toml::from_str(toml).unwrap();
+        assert_eq!(
+            config.tab_bar.workspace_name_position,
+            WorkspaceNamePositionConfig::Right
+        );
+        assert_eq!(
+            config.tab_bar.workspace_name_display,
+            WorkspaceNameDisplayConfig::OnlyCollapsed
+        );
+        assert_eq!(config.tab_bar.workspace_name_max_width, 40);
     }
 
     #[test]

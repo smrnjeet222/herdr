@@ -391,6 +391,83 @@ pub(super) fn render_tab_bar(app: &AppState, frame: &mut Frame, area: Rect) {
                 .set_style(Style::default().fg(p.overlay0));
         }
     }
+
+    let show_ws_name = match app.tab_bar.workspace_name_display {
+        crate::config::WorkspaceNameDisplayConfig::Hidden => false,
+        crate::config::WorkspaceNameDisplayConfig::Always => true,
+        crate::config::WorkspaceNameDisplayConfig::OnlyCollapsed => app.sidebar_collapsed,
+    };
+
+    if show_ws_name {
+        if let Some(active_ws_idx) = app.active {
+            if let Some(ws) = app.workspaces.get(active_ws_idx) {
+                let ws_name = workspace_prefix_text(ws);
+                match app.tab_bar.workspace_name_position {
+                    crate::config::WorkspaceNamePositionConfig::Left => {
+                        let start_x = app.view.terminal_area.x;
+                        let prefix_w = area.x.saturating_sub(start_x);
+                        if prefix_w > 0 {
+                            let prefix_rect = Rect::new(start_x, area.y, prefix_w, area.height);
+                            let max_budget = prefix_w.saturating_sub(4) as usize;
+                            let truncated = crate::ui::text::truncate_end(&ws_name, max_budget);
+                            let line = ratatui::text::Line::from(vec![
+                                ratatui::text::Span::raw(" "),
+                                ratatui::text::Span::styled(
+                                    truncated,
+                                    Style::default().fg(p.accent).add_modifier(Modifier::BOLD),
+                                ),
+                                ratatui::text::Span::raw(" "),
+                                ratatui::text::Span::styled("│", Style::default().fg(p.overlay0)),
+                                ratatui::text::Span::raw(" "),
+                            ]);
+                            frame.render_widget(
+                                Paragraph::new(line).style(Style::default().bg(p.panel_bg)),
+                                prefix_rect,
+                            );
+                        }
+                    }
+                    crate::config::WorkspaceNamePositionConfig::Right => {
+                        let start_x = area.x + area.width;
+                        let end_x = app.view.terminal_area.x + app.view.terminal_area.width;
+                        let prefix_w = end_x.saturating_sub(start_x);
+                        if prefix_w > 0 {
+                            let prefix_rect = Rect::new(start_x, area.y, prefix_w, area.height);
+                            let max_budget = prefix_w.saturating_sub(4) as usize;
+                            let truncated = crate::ui::text::truncate_end(&ws_name, max_budget);
+                            let line = ratatui::text::Line::from(vec![
+                                ratatui::text::Span::raw(" "),
+                                ratatui::text::Span::styled("│", Style::default().fg(p.overlay0)),
+                                ratatui::text::Span::raw(" "),
+                                ratatui::text::Span::styled(
+                                    truncated,
+                                    Style::default().fg(p.accent).add_modifier(Modifier::BOLD),
+                                ),
+                                ratatui::text::Span::raw(" "),
+                            ]);
+                            frame.render_widget(
+                                Paragraph::new(line).style(Style::default().bg(p.panel_bg)),
+                                prefix_rect,
+                            );
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+pub fn workspace_prefix_text(ws: &crate::workspace::Workspace) -> String {
+    if let Some(membership) = &ws.worktree_space {
+        if membership.is_linked_worktree {
+            let worktree_name = crate::ui::sidebar::grouped_child_display_label(
+                &ws.display_name(),
+                ws.branch().as_deref(),
+                ws.custom_name.is_some(),
+            );
+            return format!("{}/{}", membership.label, worktree_name);
+        }
+    }
+    ws.display_name()
 }
 
 #[cfg(test)]
@@ -503,5 +580,81 @@ mod tests {
 
         let row = buffer_row_text(terminal.backend().buffer(), app.view.tab_bar_rect, 0);
         assert!(row.contains('馈'), "tab row: {row:?}");
+    }
+
+    #[test]
+    fn tab_bar_renders_workspace_name_when_sidebar_collapsed() {
+        let mut app = AppState::test_new();
+        let mut ws = Workspace::test_new("my-workspace");
+        ws.custom_name = None;
+        ws.identity_cwd = std::path::PathBuf::from("/repo/my-workspace");
+
+        ws.worktree_space = Some(crate::workspace::WorktreeSpaceMembership {
+            key: "my-workspace".into(),
+            label: "parent-repo".into(),
+            repo_root: std::path::PathBuf::from("/repo"),
+            checkout_path: std::path::PathBuf::from("/repo/worktree-name"),
+            is_linked_worktree: true,
+        });
+        ws.cached_git_branch = Some("worktree/worktree-name".into());
+
+        app.active = Some(0);
+        app.workspaces = vec![ws];
+        app.sidebar_collapsed = true;
+
+        crate::ui::compute_view(&mut app, Rect::new(0, 0, 80, 20));
+
+        let backend = TestBackend::new(80, 20);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal
+            .draw(|frame| render_tab_bar(&app, frame, app.view.tab_bar_rect))
+            .unwrap();
+
+        let row = buffer_row_text(
+            terminal.backend().buffer(),
+            Rect::new(0, 0, 80, 1),
+            app.view.tab_bar_rect.y,
+        );
+        assert!(row.contains("parent-repo/worktr…"), "row text was: {row:?}");
+        assert!(row.contains('│'), "row text was: {row:?}");
+    }
+
+    #[test]
+    fn tab_bar_renders_workspace_name_on_right_and_with_custom_budget() {
+        let mut app = AppState::test_new();
+        let mut ws = Workspace::test_new("my-workspace");
+        ws.custom_name = None;
+        ws.identity_cwd = std::path::PathBuf::from("/repo/my-workspace");
+
+        ws.worktree_space = Some(crate::workspace::WorktreeSpaceMembership {
+            key: "my-workspace".into(),
+            label: "parent-repo".into(),
+            repo_root: std::path::PathBuf::from("/repo"),
+            checkout_path: std::path::PathBuf::from("/repo/worktree-name"),
+            is_linked_worktree: true,
+        });
+        ws.cached_git_branch = Some("worktree/worktree-name".into());
+
+        app.active = Some(0);
+        app.workspaces = vec![ws];
+        app.sidebar_collapsed = true;
+        app.tab_bar.workspace_name_position = crate::config::WorkspaceNamePositionConfig::Right;
+        app.tab_bar.workspace_name_max_width = 10;
+
+        crate::ui::compute_view(&mut app, Rect::new(0, 0, 80, 20));
+
+        let backend = TestBackend::new(80, 20);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal
+            .draw(|frame| render_tab_bar(&app, frame, app.view.tab_bar_rect))
+            .unwrap();
+
+        let row = buffer_row_text(
+            terminal.backend().buffer(),
+            Rect::new(0, 0, 80, 1),
+            app.view.tab_bar_rect.y,
+        );
+        assert!(row.contains("parent…"), "row text was: {row:?}");
+        assert!(row.contains('│'), "row text was: {row:?}");
     }
 }
