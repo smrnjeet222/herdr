@@ -401,7 +401,7 @@ pub(super) fn render_tab_bar(app: &AppState, frame: &mut Frame, area: Rect) {
     if show_ws_name {
         if let Some(active_ws_idx) = app.active {
             if let Some(ws) = app.workspaces.get(active_ws_idx) {
-                let ws_name = workspace_prefix_text(ws);
+                let ws_name = workspace_prefix_text(app, ws);
                 match app.tab_bar.workspace_name_position {
                     crate::config::WorkspaceNamePositionConfig::Left => {
                         let start_x = app.view.terminal_area.x;
@@ -456,18 +456,18 @@ pub(super) fn render_tab_bar(app: &AppState, frame: &mut Frame, area: Rect) {
     }
 }
 
-pub fn workspace_prefix_text(ws: &crate::workspace::Workspace) -> String {
+pub fn workspace_prefix_text(app: &AppState, ws: &crate::workspace::Workspace) -> String {
     if let Some(membership) = &ws.worktree_space {
         if membership.is_linked_worktree {
             let worktree_name = crate::ui::sidebar::grouped_child_display_label(
-                &ws.display_name(),
+                &ws.display_name_from_terminals(&app.terminals),
                 ws.branch().as_deref(),
                 ws.custom_name.is_some(),
             );
             return format!("{}/{}", membership.label, worktree_name);
         }
     }
-    ws.display_name()
+    ws.display_name_from_terminals(&app.terminals)
 }
 
 #[cfg(test)]

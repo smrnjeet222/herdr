@@ -270,7 +270,7 @@ fn compute_view_internal(
     let mut tab_bar_rect = tab_bar_rect;
     if show_ws_name {
         if let Some(ws) = app.active.and_then(|i| app.workspaces.get(i)) {
-            let ws_name = tabs::workspace_prefix_text(ws);
+            let ws_name = tabs::workspace_prefix_text(app, ws);
             let max_budget =
                 (tab_bar_rect.width as usize * app.tab_bar.workspace_name_max_width as usize / 100)
                     .max(5);
